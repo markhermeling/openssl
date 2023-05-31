@@ -45,7 +45,28 @@ jobs:
         run: echo "$CSONAR_HUB_PASS" > "$CSONAR_HUB_PWFILE"
       - name : configure
         run: ./Configure
-      - name: Compile and Analyze
+      - name : Native build
+        run: make
+      - name : Clean
+        run: make clean
+      - name: CodeSonar build 
+        run: >
+            COMMIT_ID=$(git rev-parse --short ${{ github.sha }});
+            NAME="$RELEASE_PROJECT_NAME-$BRANCH-$(date "+%Y.%m.%d-%H.%M")";
+            "$CODESONAR" build -clean -conf-file OpenSSL-3.0-Hourly.conf
+            -preset fast $RELEASE_PROJECT_NAME
+            -remote-archive "/saas/*" -foreground
+            -auth password
+            -hubuser "$CSONAR_HUB_USER"
+            -hubpwfile "$CSONAR_HUB_PWFILE"
+            -project "$PROJECT_NAME"
+            -property branch "$BRANCH"
+            -name $NAME
+            -property commitID "$COMMIT_ID"
+            "$CSONAR_HUB_URL"
+            make -j "$PARALLEL"
+            name: CodeSonar build 
+      - name: CodeSonar Analyze
         run: >
             COMMIT_ID=$(git rev-parse --short ${{ github.sha }});
             NAME="$RELEASE_PROJECT_NAME-$BRANCH-$(date "+%Y.%m.%d-%H.%M")";
@@ -60,7 +81,6 @@ jobs:
             -name $NAME
             -property commitID "$COMMIT_ID"
             "$CSONAR_HUB_URL"
-            make -j "$PARALLEL"
       - name: Pull Analysis Results from CodeSonar Hub
         run: >
             "$CODESONAR" dump_warnings.py
